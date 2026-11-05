@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import saludRoutes from './routes/salud.routes.js';
 import { manejarErrores } from './middlewares/errores.js';
 import authRoutes from './routes/auth.routes.js';
+import usuariosRoutes from './routes/usuarios.routes.js';
 
 const app = express();
 
@@ -14,7 +15,8 @@ app.use(cookieParser());
 
 // Rutas de la API
 app.use('/api/salud', saludRoutes);
-app.use('/api/auth', authRoutes);                                          
+app.use('/api/auth', authRoutes);    
+app.use('/api/usuarios', usuariosRoutes);                                      
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 
 // En produccion, Express sirve el build de React (un solo servicio)
