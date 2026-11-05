@@ -1,0 +1,53 @@
+:root {
+  --bs-primary: #0d4f8b;
+  --bs-primary-rgb: 13, 79, 139;
+  --bs-link-color: #0d4f8b;
+  --bs-link-hover-color: #09365f;
+  --bs-body-bg: #f4f6f9;
+  --bs-body-font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --bs-border-radius: 0.5rem;
+
+  /* Colores de estado de las órdenes (usarlos igual en todos los módulos) */
+  --estado-a-tiempo: #198754;
+  --estado-por-vencer: #ffc107;
+  --estado-retrasada: #dc3545;
+}
+
+.btn-primary {
+  --bs-btn-bg: #0d4f8b;
+  --bs-btn-border-color: #0d4f8b;
+  --bs-btn-hover-bg: #09365f;
+  --bs-btn-hover-border-color: #09365f;
+  --bs-btn-active-bg: #09365f;
+  --bs-btn-active-border-color: #09365f;
+  --bs-btn-disabled-bg: #0d4f8b;
+  --bs-btn-disabled-border-color: #0d4f8b;
+}
+
+.btn-outline-primary {
+  --bs-btn-color: #0d4f8b;
+  --bs-btn-border-color: #0d4f8b;
+  --bs-btn-hover-bg: #0d4f8b;
+  --bs-btn-hover-border-color: #0d4f8b;
+  --bs-btn-active-bg: #0d4f8b;
+  --bs-btn-active-border-color: #0d4f8b;
+}
+
+.navbar-erp {
+  background-color: #0b2a47;
+}
+
+.card {
+  border: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* Evita que las tablas anchas rompan la página en celulares */
+.tabla-responsive {
+  overflow-x: auto;
+}
+
+/* Tamaño mínimo cómodo para tocar botones en celular */
+@media (max-width: 576px) {
+  .btn { min-height: 44px; }
+}
