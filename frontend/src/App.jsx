@@ -6,6 +6,7 @@ import CambiarPasswordPage from './pages/auth/CambiarPasswordPage.jsx';
 import InicioPage from './pages/InicioPage.jsx';
 import Pendiente from './pages/Pendiente.jsx';
 import SedesPage from './pages/sedes/SedesPage.jsx';
+import UsuariosPage from './pages/usuarios/UsuariosPage.jsx';
 
 export default function App() {
   return (
@@ -20,7 +21,7 @@ export default function App() {
 
           {/* Dev A */}
           <Route element={<RutaProtegida roles={['administrador']} />}>
-            <Route path="/usuarios" element={<Pendiente titulo="Usuarios" />} />
+            <Route path="/usuarios" element={<UsuariosPage />} />
             <Route path="/sedes" element={<SedesPage />} />
           </Route>
 
