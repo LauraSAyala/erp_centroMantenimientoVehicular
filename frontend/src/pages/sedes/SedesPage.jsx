@@ -35,9 +35,20 @@ function FormSede({ sede, onGuardado, onCancelar }) {
   const guardar = useMutation({
     mutationFn: (datos) =>
       sede ? api.put(`/sedes/${sede.id_sede}`, datos) : api.post('/sedes', datos),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['sedes'] });
-      onGuardado();
+    onSuccess: (r) => {
+      // Actualiza la tabla con la respuesta del servidor, sin esperar la recarga
+      queryClient.setQueryData(['sedes'], (datos) => {
+        if (!datos) return datos;
+        const existe = datos.sedes.some((s) => s.id_sede === r.sede.id_sede);
+        return {
+          ...datos,
+          sedes: existe
+            ? datos.sedes.map((s) => (s.id_sede === r.sede.id_sede ? r.sede : s))
+            : [...datos.sedes, r.sede],
+        };
+      });
+      queryClient.invalidateQueries({ queryKey: ['sedes'] }); // sin await
+      onGuardado(sede ? 'Sede actualizada correctamente' : 'Sede creada correctamente');
     },
     onError: (e) => setError(e.message),
   });
@@ -69,7 +80,8 @@ function FormSede({ sede, onGuardado, onCancelar }) {
 export default function SedesPage() {
   const queryClient = useQueryClient();
   const [modal, setModal] = useState({ abierto: false, sede: null });
-  const [errorEstado, setErrorEstado] = useState('');
+  const [aviso, setAviso] = useState(null);
+  const mostrar = (tipo, texto) => setAviso({ tipo, texto, id: Date.now() });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['sedes'],
@@ -78,11 +90,27 @@ export default function SedesPage() {
 
   const cambiarEstado = useMutation({
     mutationFn: ({ id, activo }) => api.patch(`/sedes/${id}/estado`, { activo }),
-    onSuccess: () => {
-      setErrorEstado('');
-      queryClient.invalidateQueries({ queryKey: ['sedes'] });
+
+    onMutate: async ({ id, activo }) => {
+      setAviso(null);
+      await queryClient.cancelQueries({ queryKey: ['sedes'] });
+      const anterior = queryClient.getQueryData(['sedes']);
+      queryClient.setQueryData(['sedes'], (datos) => ({
+        ...datos,
+        sedes: datos.sedes.map((s) => (s.id_sede === id ? { ...s, activo } : s)),
+      }));
+      return { anterior };
     },
-    onError: (e) => setErrorEstado(e.message),
+
+    onSuccess: (_r, { activo }) =>
+      mostrar('success', activo ? 'Sede activada correctamente' : 'Sede desactivada correctamente'),
+
+    onError: (e, _vars, contexto) => {
+      queryClient.setQueryData(['sedes'], contexto.anterior);
+      mostrar('danger', e.message);
+    },
+
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['sedes'] }),
   });
 
   const cerrar = () => setModal({ abierto: false, sede: null });
@@ -95,7 +123,12 @@ export default function SedesPage() {
         </button>
       </PageHeader>
 
-      <Mensaje tipo="danger">{errorEstado || error?.message}</Mensaje>
+      {aviso && (
+        <Mensaje key={aviso.id} tipo={aviso.tipo}>
+          {aviso.texto}
+        </Mensaje>
+      )}
+      <Mensaje tipo="danger">{error?.message}</Mensaje>
       {isLoading && <Cargando />}
 
       {data && (
@@ -107,39 +140,56 @@ export default function SedesPage() {
                   <th>Ciudad</th>
                   <th>Dirección</th>
                   <th>Teléfono</th>
-                  <th>Usuarios</th>
+                  <th>Usuarios activos</th>
                   <th>Estado</th>
                   <th className="text-end">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                {data.sedes.map((s) => (
-                  <tr key={s.id_sede}>
-                    <td>{s.ciudad}</td>
-                    <td>{s.direccion}</td>
-                    <td>{s.telefono || '—'}</td>
-                    <td>{s._count.usuario}</td>
-                    <td>
-                      <span className={`badge ${s.activo ? 'text-bg-success' : 'text-bg-secondary'}`}>
-                        {s.activo ? 'Activa' : 'Inactiva'}
-                      </span>
-                    </td>
-                    <td className="text-end text-nowrap">
-                      <button
-                        className="btn btn-sm btn-outline-primary me-2"
-                        onClick={() => setModal({ abierto: true, sede: s })}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className={`btn btn-sm ${s.activo ? 'btn-outline-danger' : 'btn-outline-success'}`}
-                        onClick={() => cambiarEstado.mutate({ id: s.id_sede, activo: !s.activo })}
-                      >
-                        {s.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {data.sedes.map((s) => {
+                  const procesando =
+                    cambiarEstado.isPending && cambiarEstado.variables?.id === s.id_sede;
+                  const bloqueada = s.activo && s._count.usuario > 0;
+                  return (
+                    <tr key={s.id_sede}>
+                      <td>{s.ciudad}</td>
+                      <td>{s.direccion}</td>
+                      <td>{s.telefono || '—'}</td>
+                      <td>{s._count.usuario}</td>
+                      <td>
+                        <span
+                          className={`badge ${s.activo ? 'text-bg-success' : 'text-bg-secondary'}`}
+                        >
+                          {s.activo ? 'Activa' : 'Inactiva'}
+                        </span>
+                      </td>
+                      <td className="text-end text-nowrap">
+                        <button
+                          className="btn btn-sm btn-outline-primary me-2"
+                          onClick={() => setModal({ abierto: true, sede: s })}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className={`btn btn-sm ${
+                            s.activo ? 'btn-outline-danger' : 'btn-outline-success'
+                          }`}
+                          disabled={procesando || bloqueada}
+                          title={
+                            bloqueada
+                              ? 'Tiene usuarios activos: reasígnalos o desactívalos primero'
+                              : ''
+                          }
+                          onClick={() =>
+                            cambiarEstado.mutate({ id: s.id_sede, activo: !s.activo })
+                          }
+                        >
+                          {s.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {data.sedes.length === 0 && (
                   <tr>
                     <td colSpan="6" className="text-center text-muted py-4">
@@ -158,7 +208,14 @@ export default function SedesPage() {
         titulo={modal.sede ? 'Editar sede' : 'Nueva sede'}
         onCerrar={cerrar}
       >
-        <FormSede sede={modal.sede} onGuardado={cerrar} onCancelar={cerrar} />
+        <FormSede
+          sede={modal.sede}
+          onGuardado={(texto) => {
+            cerrar();
+            mostrar('success', texto);
+          }}
+          onCancelar={cerrar}
+        />
       </Modal>
     </>
   );

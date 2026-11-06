@@ -32,7 +32,11 @@ const baseSchema = z.object({
 function crearSchema(esNuevo) {
   return baseSchema.superRefine((d, ctx) => {
     if (d.rol !== 'administrador' && !d.id_sede) {
-      ctx.addIssue({ code: 'custom', path: ['id_sede'], message: 'La sede es obligatoria para este rol' });
+      ctx.addIssue({
+        code: 'custom',
+        path: ['id_sede'],
+        message: 'La sede es obligatoria para este rol',
+      });
     }
     if (esNuevo && (!d.password || d.password.length < 8)) {
       ctx.addIssue({ code: 'custom', path: ['password'], message: 'Mínimo 8 caracteres' });
@@ -82,8 +86,8 @@ function FormUsuario({ usuario, sedes, onGuardado, onCancelar }) {
         : api.put(`/usuarios/${usuario.id_usuario}`, cuerpo);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
-      onGuardado();
+      queryClient.invalidateQueries({ queryKey: ['usuarios'] }); // sin await
+      onGuardado(esNuevo ? 'Usuario creado correctamente' : 'Usuario actualizado correctamente');
     },
     onError: (e) => setError(e.message),
   });
@@ -127,14 +131,20 @@ function FormUsuario({ usuario, sedes, onGuardado, onCancelar }) {
           <CampoForm label="Rol" error={errors.rol?.message}>
             <select className="form-select" {...register('rol')}>
               {Object.entries(ROL_TEXTO).map(([valor, texto]) => (
-                <option key={valor} value={valor}>{texto}</option>
+                <option key={valor} value={valor}>
+                  {texto}
+                </option>
               ))}
             </select>
           </CampoForm>
         </div>
         <div className="col-md-6">
           <CampoForm label="Sede" error={errors.id_sede?.message}>
-            <select className="form-select" disabled={rol === 'administrador'} {...register('id_sede')}>
+            <select
+              className="form-select"
+              disabled={rol === 'administrador'}
+              {...register('id_sede')}
+            >
               <option value="">
                 {rol === 'administrador' ? 'No aplica' : 'Selecciona una sede'}
               </option>
@@ -186,8 +196,11 @@ function FormReset({ usuario, onGuardado, onCancelar }) {
   return (
     <form onSubmit={handleSubmit((d) => guardar.mutate(d))} noValidate>
       <p className="text-muted">
-        Define una contraseña temporal para <strong>{usuario.nombre} {usuario.apellido}</strong>.
-        Deberá cambiarla al iniciar sesión.
+        Define una contraseña temporal para{' '}
+        <strong>
+          {usuario.nombre} {usuario.apellido}
+        </strong>
+        . Deberá cambiarla al iniciar sesión.
       </p>
       <Mensaje tipo="danger">{error}</Mensaje>
       <CampoForm label="Contraseña temporal" error={errors.password?.message}>
@@ -210,8 +223,8 @@ export default function UsuariosPage() {
   const queryClient = useQueryClient();
   const [filtros, setFiltros] = useState({ rol: '', id_sede: '' });
   const [modal, setModal] = useState({ tipo: null, usuario: null }); // tipo: 'form' | 'reset'
-  const [errorEstado, setErrorEstado] = useState('');
-  const [aviso, setAviso] = useState('');
+  const [aviso, setAviso] = useState(null);
+  const mostrar = (tipo, texto) => setAviso({ tipo, texto, id: Date.now() });
 
   const { data: sedesData } = useQuery({
     queryKey: ['sedes'],
@@ -231,11 +244,37 @@ export default function UsuariosPage() {
 
   const cambiarEstado = useMutation({
     mutationFn: ({ id, activo }) => api.patch(`/usuarios/${id}/estado`, { activo }),
-    onSuccess: () => {
-      setErrorEstado('');
-      queryClient.invalidateQueries({ queryKey: ['usuarios'] });
+
+    onMutate: async ({ id, activo }) => {
+      setAviso(null);
+      await queryClient.cancelQueries({ queryKey: ['usuarios'] });
+      const anteriores = queryClient.getQueriesData({ queryKey: ['usuarios'] });
+      queryClient.setQueriesData({ queryKey: ['usuarios'] }, (datos) =>
+        datos
+          ? {
+              ...datos,
+              usuarios: datos.usuarios.map((u) => (u.id_usuario === id ? { ...u, activo } : u)),
+            }
+          : datos
+      );
+      return { anteriores };
     },
-    onError: (e) => setErrorEstado(e.message),
+
+    onSuccess: (_r, { activo }) => {
+      mostrar(
+        'success',
+        activo ? 'Usuario activado correctamente' : 'Usuario desactivado correctamente'
+      );
+      // El conteo de usuarios activos de las sedes cambió
+      queryClient.invalidateQueries({ queryKey: ['sedes'] });
+    },
+
+    onError: (e, _vars, contexto) => {
+      contexto.anteriores.forEach(([clave, datos]) => queryClient.setQueryData(clave, datos));
+      mostrar('danger', e.message);
+    },
+
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['usuarios'] }),
   });
 
   const cerrar = () => setModal({ tipo: null, usuario: null });
@@ -243,7 +282,10 @@ export default function UsuariosPage() {
   return (
     <>
       <PageHeader titulo="Usuarios" subtitulo="Administra los usuarios, sus roles y sedes">
-        <button className="btn btn-primary" onClick={() => setModal({ tipo: 'form', usuario: null })}>
+        <button
+          className="btn btn-primary"
+          onClick={() => setModal({ tipo: 'form', usuario: null })}
+        >
           Nuevo usuario
         </button>
       </PageHeader>
@@ -257,7 +299,9 @@ export default function UsuariosPage() {
           >
             <option value="">Todos los roles</option>
             {Object.entries(ROL_TEXTO).map(([valor, texto]) => (
-              <option key={valor} value={valor}>{texto}</option>
+              <option key={valor} value={valor}>
+                {texto}
+              </option>
             ))}
           </select>
         </div>
@@ -277,8 +321,12 @@ export default function UsuariosPage() {
         </div>
       </div>
 
-      <Mensaje tipo="success">{aviso}</Mensaje>
-      <Mensaje tipo="danger">{errorEstado || error?.message}</Mensaje>
+      {aviso && (
+        <Mensaje key={aviso.id} tipo={aviso.tipo}>
+          {aviso.texto}
+        </Mensaje>
+      )}
+      <Mensaje tipo="danger">{error?.message}</Mensaje>
       {isLoading && <Cargando />}
 
       {data && (
@@ -296,46 +344,56 @@ export default function UsuariosPage() {
                 </tr>
               </thead>
               <tbody>
-                {data.usuarios.map((u) => (
-                  <tr key={u.id_usuario}>
-                    <td>
-                      {u.nombre} {u.apellido}
-                      <div className="text-muted small">{u.identificacion}</div>
-                    </td>
-                    <td>{u.email}</td>
-                    <td>{ROL_TEXTO[u.rol]}</td>
-                    <td>{u.sede ? `${u.sede.ciudad} - ${u.sede.direccion}` : '—'}</td>
-                    <td>
-                      <span className={`badge ${u.activo ? 'text-bg-success' : 'text-bg-secondary'}`}>
-                        {u.activo ? 'Activo' : 'Inactivo'}
-                      </span>
-                    </td>
-                    <td className="text-end text-nowrap">
-                      <button
-                        className="btn btn-sm btn-outline-primary me-1"
-                        onClick={() => setModal({ tipo: 'form', usuario: u })}
-                      >
-                        Editar
-                      </button>
-                      <button
-                        className="btn btn-sm btn-outline-secondary me-1"
-                        onClick={() => {
-                          setAviso('');
-                          setModal({ tipo: 'reset', usuario: u });
-                        }}
-                      >
-                        Contraseña
-                      </button>
-                      <button
-                        className={`btn btn-sm ${u.activo ? 'btn-outline-danger' : 'btn-outline-success'}`}
-                        disabled={u.id_usuario === yo.id_usuario}
-                        onClick={() => cambiarEstado.mutate({ id: u.id_usuario, activo: !u.activo })}
-                      >
-                        {u.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {data.usuarios.map((u) => {
+                  const procesando =
+                    cambiarEstado.isPending && cambiarEstado.variables?.id === u.id_usuario;
+                  return (
+                    <tr key={u.id_usuario}>
+                      <td>
+                        {u.nombre} {u.apellido}
+                        <div className="text-muted small">{u.identificacion}</div>
+                      </td>
+                      <td>{u.email}</td>
+                      <td>{ROL_TEXTO[u.rol]}</td>
+                      <td>{u.sede ? `${u.sede.ciudad} - ${u.sede.direccion}` : '—'}</td>
+                      <td>
+                        <span
+                          className={`badge ${u.activo ? 'text-bg-success' : 'text-bg-secondary'}`}
+                        >
+                          {u.activo ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </td>
+                      <td className="text-end text-nowrap">
+                        <button
+                          className="btn btn-sm btn-outline-primary me-1"
+                          onClick={() => setModal({ tipo: 'form', usuario: u })}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          className="btn btn-sm btn-outline-secondary me-1"
+                          onClick={() => {
+                            setAviso(null);
+                            setModal({ tipo: 'reset', usuario: u });
+                          }}
+                        >
+                          Contraseña
+                        </button>
+                        <button
+                          className={`btn btn-sm ${
+                            u.activo ? 'btn-outline-danger' : 'btn-outline-success'
+                          }`}
+                          disabled={u.id_usuario === yo.id_usuario || procesando}
+                          onClick={() =>
+                            cambiarEstado.mutate({ id: u.id_usuario, activo: !u.activo })
+                          }
+                        >
+                          {u.activo ? 'Desactivar' : 'Activar'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
                 {data.usuarios.length === 0 && (
                   <tr>
                     <td colSpan="6" className="text-center text-muted py-4">
@@ -354,7 +412,16 @@ export default function UsuariosPage() {
         titulo={modal.usuario ? 'Editar usuario' : 'Nuevo usuario'}
         onCerrar={cerrar}
       >
-        <FormUsuario usuario={modal.usuario} sedes={sedesActivas} onGuardado={cerrar} onCancelar={cerrar} />
+        <FormUsuario
+          usuario={modal.usuario}
+          sedes={sedesActivas}
+          onGuardado={(texto) => {
+            cerrar();
+            mostrar('success', texto);
+            queryClient.invalidateQueries({ queryKey: ['sedes'] });
+          }}
+          onCancelar={cerrar}
+        />
       </Modal>
 
       <Modal abierto={modal.tipo === 'reset'} titulo="Restablecer contraseña" onCerrar={cerrar}>
@@ -363,7 +430,7 @@ export default function UsuariosPage() {
             usuario={modal.usuario}
             onGuardado={() => {
               cerrar();
-              setAviso('Contraseña restablecida. El usuario deberá cambiarla al ingresar.');
+              mostrar('success', 'Contraseña restablecida. El usuario deberá cambiarla al ingresar.');
             }}
             onCancelar={cerrar}
           />
