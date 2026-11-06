@@ -7,13 +7,14 @@ const sedeSchema = z.object({
   telefono: z.string().trim().max(20).optional().nullable(),
 });
 
+// _count.usuario = usuarios ACTIVOS de la sede
 const select = {
   id_sede: true,
   ciudad: true,
   direccion: true,
   telefono: true,
   activo: true,
-  _count: { select: { usuario: true } },
+  _count: { select: { usuario: { where: { activo: true } } } },
 };
 
 function invalido(res, error) {
