@@ -7,6 +7,7 @@ import InicioPage from './pages/InicioPage.jsx';
 import Pendiente from './pages/Pendiente.jsx';
 import SedesPage from './pages/sedes/SedesPage.jsx';
 import UsuariosPage from './pages/usuarios/UsuariosPage.jsx';
+import ClientesPage from './pages/clientes/ClientesPage.jsx';
 
 export default function App() {
   return (
@@ -35,7 +36,7 @@ export default function App() {
 
           {/* Dev C */}
           <Route element={<RutaProtegida roles={['lider_area']} />}>
-            <Route path="/clientes" element={<Pendiente titulo="Clientes y vehículos" />} />
+            <Route path="/clientes" element={<ClientesPage />} />
           </Route>
           <Route element={<RutaProtegida roles={['administrador']} />}>
             <Route path="/inventario" element={<Pendiente titulo="Inventario" />} />
