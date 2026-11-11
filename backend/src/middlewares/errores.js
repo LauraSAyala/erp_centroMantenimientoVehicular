@@ -3,8 +3,8 @@ export function manejarErrores(err, req, res, next) {
   if (err.type === 'entity.parse.failed' || err instanceof SyntaxError) {
     return res.status(400).json({ ok: false, mensaje: 'El cuerpo de la petición no es un JSON válido' });
   }
-  // Error de stock insuficiente (lo lanza services/stock.js)
-  if (err.name === 'StockError') {
+  // Reglas de negocio (stock insuficiente, estado inválido, etc.)
+  if (err.name === 'StockError' || err.name === 'ReglaError') {
     return res.status(err.status).json({ ok: false, mensaje: err.message });
   }
   console.error(err);
