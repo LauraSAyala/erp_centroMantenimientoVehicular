@@ -8,6 +8,7 @@ import Pendiente from './pages/Pendiente.jsx';
 import SedesPage from './pages/sedes/SedesPage.jsx';
 import UsuariosPage from './pages/usuarios/UsuariosPage.jsx';
 import ClientesPage from './pages/clientes/ClientesPage.jsx';
+import InventarioPage from './pages/inventario/InventarioPage.jsx';
 
 export default function App() {
   return (
@@ -39,7 +40,7 @@ export default function App() {
             <Route path="/clientes" element={<ClientesPage />} />
           </Route>
           <Route element={<RutaProtegida roles={['administrador']} />}>
-            <Route path="/inventario" element={<Pendiente titulo="Inventario" />} />
+            <Route path="/inventario" element={<InventarioPage />} />
             <Route path="/reportes" element={<Pendiente titulo="Reportes" />} />
           </Route>
           <Route element={<RutaProtegida roles={['cajero']} />}>
