@@ -10,6 +10,7 @@ import UsuariosPage from './pages/usuarios/UsuariosPage.jsx';
 import ClientesPage from './pages/clientes/ClientesPage.jsx';
 import InventarioPage from './pages/inventario/InventarioPage.jsx';
 import PanelPage from './pages/panel/PanelPage.jsx';
+import OrdenesPage from './pages/ordenes/OrdenesPage.jsx';
 
 export default function App() {
   return (
@@ -33,7 +34,7 @@ export default function App() {
             <Route path="/panel" element={<PanelPage />} />
           </Route>
           <Route element={<RutaProtegida roles={['lider_area']} />}>
-            <Route path="/ordenes" element={<Pendiente titulo="Órdenes" />} />
+            <Route path="/ordenes" element={<OrdenesPage />} />
           </Route>
 
           {/* Dev C */}
