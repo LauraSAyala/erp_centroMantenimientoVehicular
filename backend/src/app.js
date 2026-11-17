@@ -12,6 +12,7 @@ import clientesRoutes from './routes/clientes.routes.js';
 import vehiculosRoutes from './routes/vehiculos.routes.js';
 import productosRoutes from './routes/productos.routes.js';
 import ordenesRoutes from './routes/ordenes.routes.js';
+import cobrosRoutes from './routes/cobros.routes.js';
 
 const app = express();
 
@@ -27,6 +28,7 @@ app.use('/api/clientes', clientesRoutes);
 app.use('/api/vehiculos', vehiculosRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/ordenes', ordenesRoutes);
+app.use('/api/cobros', cobrosRoutes);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
 
 // En produccion, Express sirve el build de React (un solo servicio)

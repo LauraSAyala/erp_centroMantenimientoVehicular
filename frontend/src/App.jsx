@@ -11,6 +11,7 @@ import ClientesPage from './pages/clientes/ClientesPage.jsx';
 import InventarioPage from './pages/inventario/InventarioPage.jsx';
 import PanelPage from './pages/panel/PanelPage.jsx';
 import OrdenesPage from './pages/ordenes/OrdenesPage.jsx';
+import CobrosPage from './pages/cobros/CobrosPage.jsx';
 
 export default function App() {
   return (
@@ -46,7 +47,7 @@ export default function App() {
             <Route path="/reportes" element={<Pendiente titulo="Reportes" />} />
           </Route>
           <Route element={<RutaProtegida roles={['cajero']} />}>
-            <Route path="/cobros" element={<Pendiente titulo="Cobros" />} />
+            <Route path="/cobros" element={<CobrosPage />} />
           </Route>
         </Route>
       </Route>
