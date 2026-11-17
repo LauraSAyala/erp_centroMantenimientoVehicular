@@ -12,6 +12,7 @@ import InventarioPage from './pages/inventario/InventarioPage.jsx';
 import PanelPage from './pages/panel/PanelPage.jsx';
 import OrdenesPage from './pages/ordenes/OrdenesPage.jsx';
 import CobrosPage from './pages/cobros/CobrosPage.jsx';
+import ReportesPage from './pages/reportes/ReportesPage.jsx';
 
 export default function App() {
   return (
@@ -44,7 +45,7 @@ export default function App() {
           </Route>
           <Route element={<RutaProtegida roles={['administrador']} />}>
             <Route path="/inventario" element={<InventarioPage />} />
-            <Route path="/reportes" element={<Pendiente titulo="Reportes" />} />
+            <Route path="/reportes" element={<ReportesPage />} />
           </Route>
           <Route element={<RutaProtegida roles={['cajero']} />}>
             <Route path="/cobros" element={<CobrosPage />} />
